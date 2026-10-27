@@ -2,7 +2,7 @@ const express = require("express"), helmet = require("helmet"), rateLimit = requ
 const { Pool } = require("pg"), bcrypt = require("bcryptjs"), jwt = require("jsonwebtoken"), crypto = require("crypto"), path = require("path");
 const E = process.env;
 if (!E.DATABASE_URL || !E.JWT_SECRET) throw new Error("DATABASE_URL and JWT_SECRET are required");
-const pool = new Pool({ connectionString: E.DATABASE_URL, ssl: E.PGSSL === "true" ? { rejectUnauthorized: false } : undefined });
+const pool = new Pool({ connectionString: E.DATABASE_URL, ssl: E.PGSSL === "true" ? { rejectUnauthorized: true } : undefined });
 const q = (t, p) => pool.query(t, p);
 
 // Plans from the Signet group-plans flyer. Price depends on group size (6, 10 or 14 members).
