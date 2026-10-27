@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Signet Funerals</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#141414;--mute:#6f6f6b;--soft:#f3f3f1;--line:#e7e7e4;--gold:#b08d4c;color-scheme:light}
+*{box-sizing:border-box;margin:0}
+body{background:#fff;color:var(--ink);font-family:Inter,system-ui,sans-serif;min-height:100vh}
+#app{max-width:480px;margin:0 auto;padding:22px 20px 110px}
+#app.auth{padding:0 0 30px}
+button{font:inherit;cursor:pointer;border:0}
+h1,h2{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600}h1{font-size:30px}h2{font-size:22px;margin:24px 0 12px}
+h2:after{content:"";display:block;width:24px;height:2px;background:var(--gold);margin-top:6px}
+.m{color:var(--mute);font-size:13.5px;line-height:1.5}
+.hero{background:linear-gradient(160deg,#18181a,#2d2d30);color:#fff;border-radius:0 0 44px 44px;text-align:center;padding:50px 20px 84px}
+.hero img{width:78px;display:block;margin:0 auto 12px}
+.hero b{font:600 32px 'Cormorant Garamond',serif;letter-spacing:.22em}.hero small{display:block;letter-spacing:.5em;font-size:10px;opacity:.6;margin-top:4px}
+.sheet{background:#fff;border:1.5px solid var(--ink);border-radius:30px;margin:-46px 16px 0;padding:26px 22px;position:relative}
+.card{border:1.5px solid var(--ink);border-radius:24px;padding:18px;margin-bottom:14px}
+.field{display:block;width:100%;height:56px;border:1.5px solid var(--ink);border-radius:18px;padding:0 18px;font:inherit;margin-bottom:12px;outline:0;background:#fff;color:var(--ink)}
+textarea.field{height:96px;padding:14px 18px;resize:none}
+.field:focus{border-color:var(--gold)}
+.btn{width:100%;height:54px;border-radius:999px;background:var(--ink);color:#fff;font-weight:600;font-size:15px}
+.btn.o{background:#fff;color:var(--ink);border:1.5px solid var(--ink)}.btn.sm{width:auto;height:38px;padding:0 18px;font-size:13px}.btn:disabled{opacity:.4}
+.row{display:flex;gap:12px;margin-top:12px}.row>*{flex:1}
+.li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}.li:last-child{border:0}
+.chip{border:1px solid var(--ink);border-radius:99px;padding:4px 12px;font-size:11px;font-weight:600;text-transform:capitalize}
+.dark{background:linear-gradient(145deg,#1c1c1e,#2d2d30);color:#fff;border-radius:28px;padding:24px;margin:16px 0}
+.dark .big{font:600 34px 'Cormorant Garamond',serif;margin:8px 0 2px}
+.demo{border:1.5px dashed var(--gold);border-radius:16px;padding:12px;font-size:13px;color:var(--mute);margin-bottom:14px}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:0 14px calc(12px + env(safe-area-inset-bottom,0px))}
+nav div{display:flex;width:100%;max-width:452px;background:#fff;border:1.5px solid var(--ink);border-radius:30px;padding:7px}
+nav button{flex:1;background:none;color:var(--mute);font-size:12px;font-weight:600;padding:12px 0;border-radius:24px}
+nav button.on{background:var(--ink);color:#fff}
+.toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:99px;font-size:14px;font-weight:600;z-index:9;max-width:90%;text-align:center}
+.view{animation:r .4s both}@keyframes r{from{opacity:0;transform:translateY(12px)}}
+</style></head><body>
+<div id="app"></div><nav id="nav" hidden><div></div></nav>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>Number(n).toLocaleString("en-ZA");
+let T=null;try{T=localStorage.getItem("t")}catch(e){}
+let ME=null,mode="login",tab="home",busy=false,size=6,fstep=1,fmid="";
+const TABS=[["home","Home"],["claims","Claims"],["services","Services"],["trading","Trading"],["wallet","Wallet"]];
+function toast(t){const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),3000)}
+async function api(p,o={}){const r=await fetch("/api"+p,{method:o.b?"POST":"GET",headers:{"Content-Type":"application/json",...(T?{Authorization:"Bearer "+T}:{})},body:o.b?JSON.stringify(o.b):undefined});const j=await r.json().catch(()=>({}));if(r.status===401&&T){T=null;try{localStorage.removeItem("t")}catch(e){}ME=null;render()}if(!r.ok)throw new Error(j.error||"Something went wrong");return j}
+const val=id=>($("#"+id)||{}).value?.trim()||"";
+const shell=h=>`<div class="hero"><img src="bird.png" alt="Signet"><b>SIGNET</b><small>FUNERALS</small></div><div class="sheet view">${h}</div>`;
+function auth(){
+ if(mode=="register")return shell(`<h1>Join Signet</h1><p class="m" style="margin:6px 0 18px">Create your membership.</p><input class="field" id="rn" placeholder="Full name"><input class="field" id="rp" type="tel" placeholder="Mobile number (10 digits)"><input class="field" id="rpin" type="password" inputmode="numeric" maxlength="6" placeholder="Choose a 4 to 6 digit PIN"><button class="btn" data-a="reg">Create membership</button><div class="row"><button class="btn o" data-m="login">Back to login</button></div>`);
+ if(mode=="forgot")return shell(fstep==1?`<h1>Reset PIN</h1><p class="m" style="margin:6px 0 18px">Enter your Membership ID and the mobile number on your account. We will SMS you a code.</p><input class="field" id="fid" placeholder="Membership ID"><input class="field" id="fph" type="tel" placeholder="Mobile number"><button class="btn" data-a="fReq">Send code</button><div class="row"><button class="btn o" data-m="login">Back to login</button></div>`:`<h1>Enter code</h1><p class="m" style="margin:6px 0 18px">Enter the 6-digit code we sent and choose a new PIN.</p><input class="field" id="fotp" inputmode="numeric" maxlength="6" placeholder="6-digit code"><input class="field" id="fnp" type="password" inputmode="numeric" maxlength="6" placeholder="New 4 to 6 digit PIN"><button class="btn" data-a="fReset">Reset PIN</button><div class="row"><button class="btn o" data-m="login">Back to login</button></div>`);
+ return shell(`<h1>Welcome back</h1><p class="m" style="margin:6px 0 18px">Sign in to your membership.</p><input class="field" id="lid" placeholder="Membership ID"><input class="field" id="lpin" type="password" inputmode="numeric" maxlength="6" placeholder="Pin (e.g 1234)"><button class="btn" data-a="login">Login</button><div class="row"><button class="btn o" data-m="register">Register Now</button><button class="btn o" data-a="forgot">Forgot Pin</button></div>`);
+}
+const views={
+ home:()=>{const m=ME;return`<h1>${esc(m.name.split(" ")[0])}</h1><p class="m">${esc(m.member_no)}</p>
+ <div class="dark"><span class="chip" style="border-color:#fff">${m.active?esc(m.tier):"No plan"}</span><div class="big">${m.active?esc(m.pkg)+" · "+m.members_count+" members":"No active plan"}</div><p style="opacity:.7;font-size:13px">${m.active?"Subscription active":"Choose a plan below to activate your cover"} · ${fmt(m.tokens)} tokens</p></div>
+ <h2>Plans</h2><p class="m" style="margin-bottom:12px">Select how many members to cover.</p><div class="row" style="margin:0 0 14px">${[6,10,14].map(n=>`<button class="btn sm ${size==n?"":"o"}" style="width:100%" data-s="${n}">${n} members</button>`).join("")}</div>
+ ${Object.entries(m.plans).map(([n,p])=>`<div class="card"><div class="li" style="border:0;padding:0"><div><b style="font:600 24px 'Cormorant Garamond',serif">${n}</b><p class="m">${esc(p.pkg)}</p></div><div style="text-align:right"><b>R${fmt(p.price[size])}</b><p class="m">per month</p></div></div><details style="margin:12px 0"><summary class="m" style="cursor:pointer;font-weight:600;color:var(--ink)">What is included</summary><ul class="m" style="padding-left:18px;margin-top:8px">${p.items.map(i=>"<li>"+esc(i)+"</li>").join("")}</ul></details><button class="btn" data-a="sub" data-t="${n}">${m.active&&m.tier==n&&m.members_count==size?"Current plan":"Subscribe"}</button></div>`).join("")}
+ <h2>Children and ages</h2><div class="card">${m.minors.map(x=>`<div style="margin-bottom:12px"><b>${esc(x.age)}</b><p class="m">${esc(x.items)}</p></div>`).join("")}<p class="m">${esc(m.over65)}</p></div>`},
+ claims:()=>`<h1>Claims</h1><p class="m" style="margin:6px 0 16px">We are sorry for your loss. Start a claim and track it here.</p><input class="field" id="cn" placeholder="Name of deceased"><input class="field" id="cr" placeholder="Relationship to you"><input class="field" id="cp" type="tel" placeholder="Best contact number"><button class="btn" data-a="claim">Submit claim</button><h2>Your claims</h2><div class="card" id="cl"><p class="m">Loading...</p></div>`,
+ services:()=>`<h1>Funeral services</h1><p class="m" style="margin:6px 0 16px">Ask about burial services, cover changes or anything else.</p><select class="field" id="ek"><option>Burial service</option><option>Cover change</option><option>Other</option></select><textarea class="field" id="em" placeholder="How can we help?"></textarea><button class="btn" data-a="enq">Send enquiry</button>`,
+ wallet:()=>`<h1>Wallet</h1><div id="wl"><p class="m" style="margin-top:12px">Loading...</p></div>`,
+ trading:()=>`<h1>Trading</h1><div class="demo" style="margin-top:12px">Demo data only. No real trades, no real money.</div><div id="tr"><p class="m">Loading...</p></div>`
+};
+function render(){
+ const app=$("#app"),nv=$("#nav");
+ if(!ME){nv.hidden=true;app.className="auth";app.innerHTML=auth();return}
+ nv.hidden=false;app.className="";
+ nv.firstChild.innerHTML=TABS.map(t=>`<button data-g="${t[0]}" class="${tab==t[0]?"on":""}">${t[1]}</button>`).join("");
+ app.innerHTML='<div class="view">'+views[tab]()+"</div>";
+ if(tab=="claims")api("/claims").then(r=>{$("#cl").innerHTML=r.map(c=>`<div class="li"><div><b>${esc(c.deceased)}</b><p class="m">${esc(c.ref)}</p></div><span class="chip">${esc(c.status)}</span></div>`).join("")||'<p class="m">No claims yet.</p>'}).catch(()=>{});
+ if(tab=="wallet")loadWallet();
+ if(tab=="trading")api("/trading/demo").then(d=>{const lo=Math.min(...d.curve),hi=Math.max(...d.curve),pts=d.curve.map((v,i)=>(i*10)+","+(110-(v-lo)/(hi-lo||1)*100)).join(" ");$("#tr").innerHTML=`<div class="dark"><span class="m" style="color:#fff;opacity:.7">Demo balance</span><div class="big">R${fmt(d.balance)}</div><svg viewBox="0 0 290 120" style="width:100%"><polyline fill="none" stroke="#b08d4c" stroke-width="2" points="${pts}"/></svg></div><h2>Signals</h2><div class="card">${d.signals.map(s=>`<div class="li"><div><b>${s.pair}</b><p class="m">SL ${s.sl} · TP ${s.tp}</p></div><span class="chip">${s.side}</span></div>`).join("")}</div>`}).catch(()=>{});
+}
+const rand=c=>"R"+fmt((c/100).toFixed(2));
+function submitForm(r){const f=document.createElement("form");f.method="POST";f.action=r.action;Object.entries(r.fields).forEach(([k,v])=>{const i=document.createElement("input");i.type="hidden";i.name=k;i.value=v;f.append(i)});document.body.append(f);f.submit()}
+async function loadWallet(){try{const w=await api("/wallet");$("#wl").innerHTML=`${w.demo?'<div class="demo" style="margin-top:12px">Demo mode. No real money moves.</div>':""}<div class="dark"><span style="opacity:.7;font-size:13px">Trading account ${esc(w.login)}</span><div class="big">${rand(w.balance_cents)}</div><p style="opacity:.7;font-size:13px">Identity check: ${esc(w.kyc)}</p></div>
+<h2>Deposit</h2><input class="field" id="da" type="number" inputmode="decimal" placeholder="Amount in rand (R50 to R50 000)"><button class="btn" data-a="dep">Deposit with Ozow</button>
+<h2>Withdraw</h2>${w.bank?`<p class="m" style="margin-bottom:10px">To ${esc(w.bank.bank_name)} account ending ${esc(w.bank.last4)} (${esc(w.bank.holder)}). Withdrawals are checked by our team before payment.</p><input class="field" id="wa" type="number" inputmode="decimal" placeholder="Amount in rand"><button class="btn" data-a="wd">Request withdrawal</button>`:`<p class="m" style="margin-bottom:10px">Add the bank account that will receive your withdrawals. It must be in your own name.</p><select class="field" id="bk">${w.banks.map(b=>`<option value="${esc(b.BankGroupId)}">${esc(b.BankGroupName)}</option>`).join("")}</select><input class="field" id="bh" placeholder="Account holder name"><input class="field" id="bn" inputmode="numeric" placeholder="Account number"><button class="btn" data-a="bank">Save bank account</button>`}
+<h2>History</h2><div class="card">${w.tx.map(t=>`<div class="li"><div><b style="text-transform:capitalize">${esc(t.kind)}</b><p class="m">${esc(t.ref)}</p></div><div style="text-align:right"><b>${rand(t.amount_cents)}</b><p class="m">${esc(t.status.replace("_"," "))}</p></div></div>`).join("")||'<p class="m">No transactions yet.</p>'}</div>`}catch(e){$("#wl").innerHTML='<p class="m">Could not load your wallet.</p>'}}
+async function load(){try{ME=await api("/me")}catch(e){ME=null}render()}
+const A={
+ async login(){try{const r=await api("/login",{b:{member_no:val("lid"),pin:val("lpin")}});T=r.token;try{localStorage.setItem("t",T)}catch(e){}await load()}catch(e){toast(e.message)}},
+ async reg(){try{const r=await api("/register",{b:{name:val("rn"),phone:val("rp"),pin:val("rpin")}});T=r.token;try{localStorage.setItem("t",T)}catch(e){}await load();toast("Welcome. Your Membership ID is "+r.member_no)}catch(e){toast(e.message)}},
+ forgot(){mode="forgot";fstep=1;render()},
+ async fReq(){try{fmid=val("fid");await api("/pin/request",{b:{member_no:fmid,phone:val("fph")}});fstep=2;render();toast("If the details match, a code has been sent")}catch(e){toast(e.message)}},
+ async fReset(){try{await api("/pin/reset",{b:{member_no:fmid,otp:val("fotp"),pin:val("fnp")}});mode="login";render();toast("PIN updated. Please sign in")}catch(e){toast(e.message)}},
+ async sub(b){if(busy)return;busy=true;try{const r=await api("/subscription/checkout",{b:{tier:b.dataset.t,members:size}});const f=document.createElement("form");f.method="POST";f.action=r.action;Object.entries(r.fields).forEach(([k,v])=>{const i=document.createElement("input");i.type="hidden";i.name=k;i.value=v;f.append(i)});document.body.append(f);f.submit()}catch(e){toast(e.message);busy=false}},
+ async claim(){try{const r=await api("/claims",{b:{deceased:val("cn"),relationship:val("cr"),phone:val("cp")}});toast("Claim received. Reference "+r.ref);render()}catch(e){toast(e.message)}},
+ async dep(){try{const r=await api("/wallet/deposit",{b:{amount:+val("da")}});if(r.simulate){await api("/wallet/dev/complete",{b:{ref:r.ref}});toast("Demo deposit credited");render();return}submitForm(r)}catch(e){toast(e.message)}},
+ async wd(){try{await api("/wallet/withdraw",{b:{amount:+val("wa")}});toast("Withdrawal requested. We will verify it shortly.");render()}catch(e){toast(e.message)}},
+ async bank(){try{await api("/wallet/bank",{b:{bank_group_id:$("#bk").value,holder:val("bh"),account:val("bn")}});toast("Bank account saved");render()}catch(e){toast(e.message)}},
+ async enq(){try{await api("/enquiries",{b:{kind:$("#ek").value,message:val("em")}});toast("Enquiry sent. We will contact you.");$("#em").value=""}catch(e){toast(e.message)}}
+};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a],[data-m],[data-g],[data-s]");if(!b)return;
+ if(b.dataset.a)A[b.dataset.a](b);else if(b.dataset.m){mode=b.dataset.m;fstep=1;render()}else if(b.dataset.s){size=+b.dataset.s;render()}else{tab=b.dataset.g;render();scrollTo(0,0)}});
+if(location.hash=="#paid"){toast("Payment sent. Your plan activates once PayFast confirms.");history.replaceState(null,"","/")}
+if(location.hash=="#cancel"){toast("Payment cancelled");history.replaceState(null,"","/")}
+if(location.hash=="#deposited"){toast("Deposit sent. It shows once your bank confirms.");history.replaceState(null,"","/")}
+if(location.hash=="#error"){toast("Deposit failed");history.replaceState(null,"","/")}
+T?load():render();
+</script></body></html>
