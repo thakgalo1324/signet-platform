@@ -1,16 +1,50 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Signet back office</title>
-<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:0 auto;padding:20px;color:#141414}h1{font-size:22px}h2{font-size:16px;margin-top:28px}input,button{font:inherit;padding:10px 14px;border-radius:12px;border:1.5px solid #141414}button{background:#141414;color:#fff;cursor:pointer}button.o{background:#fff;color:#141414}.r{border:1.5px solid #141414;border-radius:16px;padding:14px;margin:10px 0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}small{color:#6f6f6b;display:block}</style></head><body>
-<h1>Signet back office</h1><p><input id="k" type="password" placeholder="Admin key"> <button onclick="go()">Load</button></p><div id="o"></div>
+<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:0 auto;padding:20px;color:#141414}h1{font-size:22px}h2{font-size:16px;margin-top:28px}input,button{font:inherit;padding:10px 14px;border-radius:12px;border:1.5px solid #141414}button{background:#141414;color:#fff;cursor:pointer}button.o{background:#fff;color:#141414}button.arm{background:#b08d4c;border-color:#b08d4c}.r{border:1.5px solid #141414;border-radius:16px;padding:14px;margin:10px 0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}small{color:#6f6f6b;display:block}#s{margin:12px 0;font-weight:600}</style></head><body>
+<h1>Signet back office</h1>
+<p><input id="k" type="password" placeholder="Admin key"> <button id="load">Load</button></p>
+<div id="s"></div><div id="o"></div>
 <script>
+const $=id=>document.getElementById(id);
 const e=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let K=sessionStorage.getItem("ak")||"";document.getElementById("k").value=K;
-async function api(p,b){const r=await fetch("/api/admin"+p,{method:b?"POST":"GET",headers:{"x-admin-key":K,"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined});if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||("Error "+r.status))}return r.status==204?{}:r.json()}
-async function go(){K=document.getElementById("k").value;sessionStorage.setItem("ak",K);try{const d=await api("/overview");
-document.getElementById("o").innerHTML="<h2>Identity checks pending</h2>"+(d.kyc.map(m=>`<div class="r"><div><b>${e(m.name)}</b><small>${e(m.member_no)} · ${e(m.phone)}</small></div><div><button onclick="kyc('${e(m.member_no)}','verified')">Verify</button> <button class="o" onclick="kyc('${e(m.member_no)}','rejected')">Reject</button></div></div>`).join("")||"<p>None</p>")+
-"<h2>Withdrawals</h2>"+(d.withdrawals.map(w=>`<div class="r"><div><b>R${(w.amount_cents/100).toFixed(2)}</b> · ${e(w.status)}<small>${e(w.name)} (${e(w.member_no)}) · identity ${e(w.kyc)} · trading balance R${((w.balance_cents||0)/100).toFixed(2)}</small><small>Pay to: ${e(w.holder)} · ${e(w.bank_name)} ending ${e(w.last4)} · ${e(w.ref)}</small></div><div>${w.status=="requested"?`<button onclick="act(${w.id},'approve')">Approve</button> <button class="o" onclick="act(${w.id},'reject')">Reject</button>`:w.status=="paying"?`<button onclick="mark(${w.id},'paid')">Mark paid</button> <button class="o" onclick="mark(${w.id},'failed')">Mark failed</button>`:""}</div></div>`).join("")||"<p>None</p>")+
-"<h2>Deposits needing attention</h2>"+(d.stuck.map(s=>`<div class="r"><div>${e(s.ref)} · R${(s.amount_cents/100).toFixed(2)} · ${e(s.status)}</div></div>`).join("")||"<p>None</p>")}catch(x){alert(x.message)}}
-async function kyc(n,s){try{await api("/kyc",{member_no:n,status:s});go()}catch(x){alert(x.message)}}
-async function act(id,a){if(!confirm(a+" this withdrawal?"))return;try{await api("/withdrawals/"+id+"/"+a,{});go()}catch(x){alert(x.message);go()}}
-async function mark(id,r){if(!confirm("Confirm with Ozow's dashboard first. Mark as "+r+"?"))return;try{await api("/withdrawals/"+id+"/mark",{result:r});go()}catch(x){alert(x.message);go()}}
+const R=c=>"R"+((c||0)/100).toFixed(2);
+let K="";try{K=sessionStorage.getItem("ak")||""}catch(x){}
+$("k").value=K;
+function say(t){$("s").textContent=t}
+async function api(p,b){
+  const r=await fetch("/api/admin"+p,{method:b?"POST":"GET",headers:{"x-admin-key":K,"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined});
+  if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||(r.status==403?"Wrong admin key (403)":"Error "+r.status))}
+  return r.status==204?{}:r.json();
+}
+async function go(){
+  K=$("k").value.trim();try{sessionStorage.setItem("ak",K)}catch(x){}
+  say("Loading...");
+  try{
+    const d=await api("/overview");
+    const btn=(k,a,b,t,o)=>`<button class="${o?"o ":""}act" data-k="${k}" data-a="${e(a)}" data-b="${b}">${t}</button>`;
+    $("o").innerHTML="<h2>Identity checks pending</h2>"+(d.kyc.map(m=>`<div class="r"><div><b>${e(m.name)}</b><small>${e(m.member_no)} · ${e(m.phone)}</small></div><div>${btn("kyc",m.member_no,"verified","Verify")} ${btn("kyc",m.member_no,"rejected","Reject",1)}</div></div>`).join("")||"<p>None</p>")+
+    "<h2>Withdrawals</h2>"+(d.withdrawals.map(w=>`<div class="r"><div><b>${R(w.amount_cents)}</b> · ${e(w.status)}<small>${e(w.name)} (${e(w.member_no)}) · identity ${e(w.kyc)} · trading balance ${R(w.balance_cents)}</small><small>Pay to: ${e(w.holder)} · ${e(w.bank_name)} ending ${e(w.last4)} · ${e(w.ref)}</small></div><div>${w.status=="requested"?btn("act",w.id,"approve","Approve")+" "+btn("act",w.id,"reject","Reject",1):w.status=="paying"?btn("mark",w.id,"paid","Mark paid")+" "+btn("mark",w.id,"failed","Mark failed",1):""}</div></div>`).join("")||"<p>None</p>")+
+    "<h2>Deposits needing attention</h2>"+(d.stuck.map(s=>`<div class="r"><div>${e(s.ref)} · ${R(s.amount_cents)} · ${e(s.status)}</div></div>`).join("")||"<p>None</p>");
+    say("Loaded "+new Date().toLocaleTimeString());
+  }catch(x){say("Could not load: "+x.message);$("o").innerHTML=""}
+}
+async function run(k,a,b){
+  try{
+    if(k=="kyc")await api("/kyc",{member_no:a,status:b});
+    else if(k=="act")await api("/withdrawals/"+a+"/"+b,{});
+    else await api("/withdrawals/"+a+"/mark",{result:b});
+    await go();
+  }catch(x){say("Failed: "+x.message)}
+}
+document.addEventListener("click",ev=>{
+  const b=ev.target.closest("button");if(!b)return;
+  if(b.id==="load")return go();
+  if(!b.classList.contains("act"))return;
+  if(!b.classList.contains("arm")){ // first tap arms the button, second tap confirms
+    b.classList.add("arm");b.dataset.t=b.textContent;b.textContent="Tap again to confirm";
+    setTimeout(()=>{if(b.isConnected){b.classList.remove("arm");b.textContent=b.dataset.t}},3500);return;
+  }
+  run(b.dataset.k,b.dataset.a,b.dataset.b);
+});
+$("k").addEventListener("keydown",ev=>{if(ev.key==="Enter")go()});
 if(K)go();
 </script></body></html>
